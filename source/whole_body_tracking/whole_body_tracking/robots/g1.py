@@ -4,30 +4,40 @@ from isaaclab.assets.articulation import ArticulationCfg
 
 from whole_body_tracking.assets import ASSET_DIR
 
+# -------------------------------------------------------------------------- #
+# 关节电机参数定义 (Armature, Stiffness, Damping)
+# -------------------------------------------------------------------------- #
+# 电机转子惯量 (Armature)
 ARMATURE_5020 = 0.003609725
 ARMATURE_7520_14 = 0.010177520
 ARMATURE_7520_22 = 0.025101925
 ARMATURE_4010 = 0.00425
 
-NATURAL_FREQ = 10 * 2.0 * 3.1415926535  # 10Hz
-DAMPING_RATIO = 2.0
+# 控制参数计算基准
+NATURAL_FREQ = 10 * 2.0 * 3.1415926535  # 自然频率 10Hz
+DAMPING_RATIO = 2.0                     # 阻尼比
 
+# 根据自然频率和转子惯量计算刚度 (Stiffness = Armature * NaturalFreq^2)
 STIFFNESS_5020 = ARMATURE_5020 * NATURAL_FREQ**2
 STIFFNESS_7520_14 = ARMATURE_7520_14 * NATURAL_FREQ**2
 STIFFNESS_7520_22 = ARMATURE_7520_22 * NATURAL_FREQ**2
 STIFFNESS_4010 = ARMATURE_4010 * NATURAL_FREQ**2
 
+# 根据阻尼比、转子惯量和自然频率计算阻尼 (Damping = 2 * DampingRatio * Armature * NaturalFreq)
 DAMPING_5020 = 2.0 * DAMPING_RATIO * ARMATURE_5020 * NATURAL_FREQ
 DAMPING_7520_14 = 2.0 * DAMPING_RATIO * ARMATURE_7520_14 * NATURAL_FREQ
 DAMPING_7520_22 = 2.0 * DAMPING_RATIO * ARMATURE_7520_22 * NATURAL_FREQ
 DAMPING_4010 = 2.0 * DAMPING_RATIO * ARMATURE_4010 * NATURAL_FREQ
 
+# -------------------------------------------------------------------------- #
+# G1 机器人关节配置 (Articulation Configuration)
+# -------------------------------------------------------------------------- #
 G1_CYLINDER_CFG = ArticulationCfg(
     spawn=sim_utils.UrdfFileCfg(
-        fix_base=False,
-        replace_cylinders_with_capsules=True,
-        asset_path=f"{ASSET_DIR}/unitree_description/urdf/g1/main.urdf",
-        activate_contact_sensors=True,
+        fix_base=False,  # 浮动基座
+        replace_cylinders_with_capsules=True,  # 碰撞体优化：圆柱体替换为胶囊体
+        asset_path=f"{ASSET_DIR}/unitree_description/urdf/g1/main.urdf",  # URDF 文件路径
+        activate_contact_sensors=True,  # 启用接触传感器
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
             retain_accelerations=False,
@@ -40,13 +50,14 @@ G1_CYLINDER_CFG = ArticulationCfg(
         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
             enabled_self_collisions=True, solver_position_iteration_count=8, solver_velocity_iteration_count=4
         ),
+        # 默认关节驱动配置 (这里设为0，因为具体控制在 actuators 中定义)
         joint_drive=sim_utils.UrdfConverterCfg.JointDriveCfg(
             gains=sim_utils.UrdfConverterCfg.JointDriveCfg.PDGainsCfg(stiffness=0, damping=0)
         ),
     ),
     init_state=ArticulationCfg.InitialStateCfg(
-        pos=(0.0, 0.0, 0.76),
-        joint_pos={
+        pos=(0.0, 0.0, 0.76),  # 初始位置 (x, y, z)
+        joint_pos={            # 初始关节角度
             ".*_hip_pitch_joint": -0.312,
             ".*_knee_joint": 0.669,
             ".*_ankle_pitch_joint": -0.363,
@@ -56,10 +67,13 @@ G1_CYLINDER_CFG = ArticulationCfg(
             "right_shoulder_roll_joint": -0.2,
             "right_shoulder_pitch_joint": 0.2,
         },
-        joint_vel={".*": 0.0},
+        joint_vel={".*": 0.0}, # 初始关节速度
     ),
-    soft_joint_pos_limit_factor=0.9,
+    soft_joint_pos_limit_factor=0.9, # 软限位因子
     actuators={
+        # ------------------------------------------------------------------ #
+        # 腿部关节 (Legs)
+        # ------------------------------------------------------------------ #
         "legs": ImplicitActuatorCfg(
             joint_names_expr=[
                 ".*_hip_yaw_joint",
@@ -67,37 +81,40 @@ G1_CYLINDER_CFG = ArticulationCfg(
                 ".*_hip_pitch_joint",
                 ".*_knee_joint",
             ],
-            effort_limit_sim={
+            effort_limit_sim={ # 仿真力矩限制
                 ".*_hip_yaw_joint": 88.0,
                 ".*_hip_roll_joint": 139.0,
                 ".*_hip_pitch_joint": 88.0,
                 ".*_knee_joint": 139.0,
             },
-            velocity_limit_sim={
+            velocity_limit_sim={ # 仿真速度限制
                 ".*_hip_yaw_joint": 32.0,
                 ".*_hip_roll_joint": 20.0,
                 ".*_hip_pitch_joint": 32.0,
                 ".*_knee_joint": 20.0,
             },
-            stiffness={
+            stiffness={ # PD控制 P参数
                 ".*_hip_pitch_joint": STIFFNESS_7520_14,
                 ".*_hip_roll_joint": STIFFNESS_7520_22,
                 ".*_hip_yaw_joint": STIFFNESS_7520_14,
                 ".*_knee_joint": STIFFNESS_7520_22,
             },
-            damping={
+            damping={ # PD控制 D参数
                 ".*_hip_pitch_joint": DAMPING_7520_14,
                 ".*_hip_roll_joint": DAMPING_7520_22,
                 ".*_hip_yaw_joint": DAMPING_7520_14,
                 ".*_knee_joint": DAMPING_7520_22,
             },
-            armature={
+            armature={ # 转子惯量
                 ".*_hip_pitch_joint": ARMATURE_7520_14,
                 ".*_hip_roll_joint": ARMATURE_7520_22,
                 ".*_hip_yaw_joint": ARMATURE_7520_14,
                 ".*_knee_joint": ARMATURE_7520_22,
             },
         ),
+        # ------------------------------------------------------------------ #
+        # 足部关节 (Feet)
+        # ------------------------------------------------------------------ #
         "feet": ImplicitActuatorCfg(
             effort_limit_sim=50.0,
             velocity_limit_sim=37.0,
@@ -106,6 +123,9 @@ G1_CYLINDER_CFG = ArticulationCfg(
             damping=2.0 * DAMPING_5020,
             armature=2.0 * ARMATURE_5020,
         ),
+        # ------------------------------------------------------------------ #
+        # 腰部关节 (Waist Roll/Pitch)
+        # ------------------------------------------------------------------ #
         "waist": ImplicitActuatorCfg(
             effort_limit_sim=50,
             velocity_limit_sim=37.0,
@@ -114,6 +134,9 @@ G1_CYLINDER_CFG = ArticulationCfg(
             damping=2.0 * DAMPING_5020,
             armature=2.0 * ARMATURE_5020,
         ),
+        # ------------------------------------------------------------------ #
+        # 腰部偏航关节 (Waist Yaw)
+        # ------------------------------------------------------------------ #
         "waist_yaw": ImplicitActuatorCfg(
             effort_limit_sim=88,
             velocity_limit_sim=32.0,
@@ -122,6 +145,9 @@ G1_CYLINDER_CFG = ArticulationCfg(
             damping=DAMPING_7520_14,
             armature=ARMATURE_7520_14,
         ),
+        # ------------------------------------------------------------------ #
+        # 手臂关节 (Arms)
+        # ------------------------------------------------------------------ #
         "arms": ImplicitActuatorCfg(
             joint_names_expr=[
                 ".*_shoulder_pitch_joint",
@@ -181,6 +207,10 @@ G1_CYLINDER_CFG = ArticulationCfg(
     },
 )
 
+# -------------------------------------------------------------------------- #
+# 动作缩放比例计算 (Action Scale)
+# -------------------------------------------------------------------------- #
+# 计算公式: scale = 0.25 * effort_limit / stiffness
 G1_ACTION_SCALE = {}
 for a in G1_CYLINDER_CFG.actuators.values():
     e = a.effort_limit_sim
