@@ -8,10 +8,10 @@ class G1FlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     
     # 最大训练迭代次数（总训练轮数，控制训练时长）###修改30000
-    max_iterations = 1000
+    max_iterations = 3000
     
     # 模型检查点保存间隔（每50次迭代保存一次模型）###修改500
-    save_interval = 250
+    save_interval = 500
     
     # 实验名称（用于日志目录命名）
     experiment_name = "g1_flat"
